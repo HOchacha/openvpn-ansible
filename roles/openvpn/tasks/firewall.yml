@@ -1,0 +1,46 @@
+# 서버 primary IPv4 (NAT SNAT 대상) 자동 결정
+- name: Determine primary IPv4 for SNAT when not provided
+  set_fact:
+    _snat_ip: "{{ openvpn_nat_interface_ip | default(ansible_default_ipv4.address, true) }}"
+
+# firewalld 사용 시
+- name: Configure firewalld rules
+  when: openvpn_use_firewalld
+  block:
+    - command: firewall-cmd --add-port={{ openvpn_port }}/{{ openvpn_proto }}
+    - command: firewall-cmd --zone=trusted --add-source={{ openvpn_nat_subnet_v4 }}
+    - command: firewall-cmd --permanent --add-port={{ openvpn_port }}/{{ openvpn_proto }}
+    - command: firewall-cmd --permanent --zone=trusted --add-source={{ openvpn_nat_subnet_v4 }}
+    - command: firewall-cmd --direct --add-rule ipv4 nat POSTROUTING 0 -s {{ openvpn_nat_subnet_v4 }} "! -d {{ openvpn_nat_subnet_v4 }}" -j SNAT --to {{ _snat_ip }}
+    - command: firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s {{ openvpn_nat_subnet_v4 }} "! -d {{ openvpn_nat_subnet_v4 }}" -j SNAT --to {{ _snat_ip }}
+    - when: openvpn_enable_ipv6
+      block:
+        - command: firewall-cmd --zone=trusted --add-source={{ openvpn_ipv6_prefix }}
+        - command: firewall-cmd --permanent --zone=trusted --add-source={{ openvpn_ipv6_prefix }}
+
+# iptables 사용 시(systemd unit로 영속화)
+- name: Render openvpn-iptables.service
+  when: not openvpn_use_firewalld
+  template:
+    src: openvpn-iptables.service.j2
+    dest: /etc/systemd/system/openvpn-iptables.service
+    mode: '0644'
+  notify: Reload systemd
+
+- name: Enable openvpn-iptables
+  when: not openvpn_use_firewalld
+  systemd:
+    name: openvpn-iptables.service
+    enabled: true
+    state: started
+
+# SELinux 포트 라벨 (RHEL/Fedora, 포트 변경 시)
+- name: Label SELinux port for OpenVPN
+  when: ansible_os_family == "RedHat" and openvpn_manage_selinux_port and (openvpn_port|int) != 1194
+  block:
+    - package: { name: policycoreutils-python-utils, state: present }
+    - command: semanage port -a -t openvpn_port_t -p {{ openvpn_proto }} {{ openvpn_port }}
+      args:
+        warn: false
+      register: semanage_add
+      failed_when: semanage_add.rc not in [0,1]

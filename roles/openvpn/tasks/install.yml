@@ -1,0 +1,71 @@
+- name: Ensure basic packages
+  package:
+    name: "{{ item }}"
+    state: present
+  loop: >
+    {{
+      (ansible_os_family == 'Debian')
+      | ternary(['openvpn','openssl','ca-certificates','curl','tar'], ['openvpn','openssl','ca-certificates','tar','curl'])
+    }}
+
+- name: Enable and start firewalld when requested (RHEL/Fedora)
+  when: openvpn_use_firewalld
+  block:
+    - name: Install firewalld
+      package:
+        name: firewalld
+        state: present
+    - name: Enable firewalld
+      systemd:
+        name: firewalld
+        enabled: true
+        state: started
+
+# easy-rsa tarball 설치
+- name: Create easy-rsa dir
+  file:
+    path: "{{ openvpn_easy_rsa_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Download EasyRSA tarball
+  get_url:
+    url: "{{ openvpn_easy_rsa_url }}"
+    dest: "/tmp/easyrsa-{{ openvpn_easy_rsa_version }}.tgz"
+    mode: '0644'
+
+- name: Unarchive EasyRSA
+  unarchive:
+    src: "/tmp/easyrsa-{{ openvpn_easy_rsa_version }}.tgz"
+    dest: "{{ openvpn_easy_rsa_dir }}"
+    remote_src: true
+    extra_opts: ["--strip-components=1"]
+
+- name: Fix easy-rsa ownership
+  file:
+    path: "{{ openvpn_easy_rsa_dir }}"
+    owner: root
+    group: root
+    recurse: true
+
+# 컨테이너(가상) 환경 시 LimitNPROC 완화 (스크립트 재현)
+- name: Disable LimitNPROC for openvpn-server@server when virtualized
+  when: ansible_virtualization_role is defined and ansible_virtualization_role != "host"
+  block:
+    - name: Create drop-in dir
+      file:
+        path: /etc/systemd/system/openvpn-server@server.service.d
+        state: directory
+        mode: '0755'
+    - name: Write drop-in
+      copy:
+        dest: /etc/systemd/system/openvpn-server@server.service.d/disable-limitnproc.conf
+        mode: '0644'
+        content: |
+          [Service]
+          LimitNPROC=infinity
+    - name: daemon-reload
+      systemd:
+        daemon_reload: true

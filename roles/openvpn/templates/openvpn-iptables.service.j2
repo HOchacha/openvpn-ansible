@@ -1,0 +1,19 @@
+[Unit]
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/iptables -w 5 -t nat -A POSTROUTING -s {{ openvpn_nat_subnet_v4 }} ! -d {{ openvpn_nat_subnet_v4 }} -j SNAT --to {{ _snat_ip }}
+ExecStart=/usr/sbin/iptables -w 5 -I INPUT -p {{ openvpn_proto }} --dport {{ openvpn_port }} -j ACCEPT
+ExecStart=/usr/sbin/iptables -w 5 -I FORWARD -s {{ openvpn_nat_subnet_v4 }} -j ACCEPT
+ExecStart=/usr/sbin/iptables -w 5 -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+RemainAfterExit=yes
+
+ExecStop=/usr/sbin/iptables -w 5 -t nat -D POSTROUTING -s {{ openvpn_nat_subnet_v4 }} ! -d {{ openvpn_nat_subnet_v4 }} -j SNAT --to {{ _snat_ip }}
+ExecStop=/usr/sbin/iptables -w 5 -D INPUT -p {{ openvpn_proto }} --dport {{ openvpn_port }} -j ACCEPT
+ExecStop=/usr/sbin/iptables -w 5 -D FORWARD -s {{ openvpn_nat_subnet_v4 }} -j ACCEPT
+ExecStop=/usr/sbin/iptables -w 5 -D FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+[Install]
+WantedBy=multi-user.target

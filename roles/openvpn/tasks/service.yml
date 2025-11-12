@@ -1,0 +1,5 @@
+- name: Enable and start OpenVPN
+  ansible.builtin.systemd:
+    name: "{{ openvpn_service }}"
+    enabled: true
+    state: started

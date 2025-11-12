@@ -1,0 +1,61 @@
+local {{ _snat_ip | default(ansible_default_ipv4.address) }}
+port {{ openvpn_port }}
+proto {{ openvpn_proto }}
+dev tun
+
+ca ca.crt
+cert server.crt
+key server.key
+dh dh.pem
+
+auth {{ openvpn_auth }}
+{% if openvpn_use_tls_crypt %}
+tls-crypt tc.key
+{% endif %}
+topology subnet
+server 10.8.0.0 255.255.255.0
+
+# DNS push
+{% if openvpn_dns_choice == 'system' %}
+{% set resolv = (lookup('file','/etc/resolv.conf'),'') %}
+push "redirect-gateway def1 bypass-dhcp"
+{% elif openvpn_dns_choice == 'google' %}
+push "dhcp-option DNS 8.8.8.8"
+push "dhcp-option DNS 8.8.4.4"
+{% elif openvpn_dns_choice == 'cloudflare' %}
+push "dhcp-option DNS 1.1.1.1"
+push "dhcp-option DNS 1.0.0.1"
+{% elif openvpn_dns_choice == 'opendns' %}
+push "dhcp-option DNS 208.67.222.222"
+push "dhcp-option DNS 208.67.220.220"
+{% elif openvpn_dns_choice == 'quad9' %}
+push "dhcp-option DNS 9.9.9.9"
+push "dhcp-option DNS 149.112.112.112"
+{% elif openvpn_dns_choice == 'gcore' %}
+push "dhcp-option DNS 95.85.95.85"
+push "dhcp-option DNS 2.56.220.2"
+{% elif openvpn_dns_choice == 'adguard' %}
+push "dhcp-option DNS 94.140.14.14"
+push "dhcp-option DNS 94.140.15.15"
+{% elif openvpn_dns_choice == 'custom' %}
+{% for ip in openvpn_dns_custom %}
+push "dhcp-option DNS {{ ip }}"
+{% endfor %}
+{% endif %}
+
+{% if openvpn_enable_ipv6 %}
+server-ipv6 {{ openvpn_ipv6_prefix }}
+push "redirect-gateway def1 ipv6 bypass-dhcp"
+{% else %}
+push "redirect-gateway def1 bypass-dhcp"
+{% endif %}
+
+ifconfig-pool-persist ipp.txt
+
+user nobody
+group {{ (ansible_os_family == 'Debian') | ternary('nogroup','nobody') }}
+persist-key
+persist-tun
+verb 3
+crl-verify crl.pem
+{% if openvpn_proto == 'udp' %}explicit-exit-notify{% endif %}

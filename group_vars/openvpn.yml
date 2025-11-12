@@ -1,0 +1,26 @@
+# === 기본 설치 ===
+openvpn_port: 1194                # 스크립트의 Port 질문
+openvpn_proto: "udp"              # "udp" 또는 "tcp"
+openvpn_dns_choice: "system"      # system | google | cloudflare | opendns | quad9 | gcore | adguard | custom
+openvpn_dns_custom: []            # 예: ["1.1.1.1", "9.9.9.9"] (choice=custom일 때만 사용)
+openvpn_client_name: "client"     # 최초 생성할 클라이언트 이름
+openvpn_enable_ipv6: false        # 스크립트의 IPv6 자동감지 대신 변수
+openvpn_ipv6_prefix: "fddd:1194:1194:1194::/64"
+
+# === easy-rsa (tarball 설치) ===
+openvpn_easy_rsa_version: "3.2.4"
+openvpn_easy_rsa_url: "https://github.com/OpenVPN/easy-rsa/releases/download/v{{ openvpn_easy_rsa_version }}/EasyRSA-{{ openvpn_easy_rsa_version }}.tgz"
+openvpn_easy_rsa_dir: /etc/openvpn/server/easy-rsa
+openvpn_pki_dir: /etc/openvpn/server  # 스크립트와 동일 배치
+
+# === 암호 설정 ===
+openvpn_auth: "SHA512"
+openvpn_use_tls_crypt: true
+
+# === 방화벽/NAT ===
+openvpn_use_firewalld: false      # RHEL/Fedora면 true 권장
+openvpn_nat_subnet_v4: "10.8.0.0/24"
+openvpn_nat_interface_ip: ""      # SNAT --to <이 IP>; 비워두면 서버 primary IPv4 사용
+
+# === SELinux 포트 라벨링(RHEL/Fedora에서 포트 커스텀 시) ===
+openvpn_manage_selinux_port: true

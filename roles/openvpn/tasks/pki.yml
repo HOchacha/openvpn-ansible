@@ -1,0 +1,106 @@
+- name: Create PKI dir (server root)
+  file:
+    path: "{{ openvpn_pki_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+# ========== PKI 초기화 & CA/서버/클라 발급 ==========
+- name: Init PKI if not exists
+  command: ./easyrsa --batch init-pki
+  args:
+    chdir: "{{ openvpn_easy_rsa_dir }}"
+    creates: "{{ openvpn_easy_rsa_dir }}/pki"
+  environment:
+    EASYRSA_PKI: "{{ openvpn_easy_rsa_dir }}/pki"
+
+- name: Build CA nopass
+  command: ./easyrsa --batch build-ca nopass
+  args:
+    chdir: "{{ openvpn_easy_rsa_dir }}"
+    creates: "{{ openvpn_easy_rsa_dir }}/pki/ca.crt"
+  environment:
+    EASYRSA_PKI: "{{ openvpn_easy_rsa_dir }}/pki"
+
+- name: Generate tls-crypt key when enabled
+  command: ./easyrsa gen-tls-crypt-key
+  args:
+    chdir: "{{ openvpn_easy_rsa_dir }}"
+    creates: "{{ openvpn_easy_rsa_dir }}/pki/private/easyrsa-tls.key"
+  when: openvpn_use_tls_crypt
+  environment:
+    EASYRSA_PKI: "{{ openvpn_easy_rsa_dir }}/pki"
+
+# DH: 스크립트의 ffdhe2048 고정 값 사용
+- name: Write DH params to /etc/openvpn/server/dh.pem
+  copy:
+    dest: "{{ openvpn_pki_dir }}/dh.pem"
+    mode: '0644'
+    content: |
+      -----BEGIN DH PARAMETERS-----
+      MIIBCAKCAQEA//////////+t+FRYortKmq/cViAnPTzx2LnFg84tNpWp4TZBFGQz
+      +8yTnc4kmz75fS/jY2MMddj2gbICrsRhetPfHtXV/WVhJDP1H18GbtCFY2VVPe0a
+      87VXE15/V8k1mE8McODmi3fipona8+/och3xWKE2rec1MKzKT0g6eXq8CrGCsyT7
+      YdEIqUuyyOP7uWrat2DX9GgdT0Kj3jlN9K5W7edjcrsZCwenyO4KbXCeAvzhzffi
+      7MA0BM0oNC9hkXL+nOmFg/+OTxIy7vKBg8P+OxtMb61zO7X8vC7CIAXFjvGDfRaD
+      ssbzSibBsu/6iGtCOGEoXJf//////////wIBAg==
+      -----END DH PARAMETERS-----
+
+- name: Symlink pki/dh.pem -> /etc/openvpn/server/dh.pem (to avoid warning)
+  file:
+    src: "{{ openvpn_pki_dir }}/dh.pem"
+    dest: "{{ openvpn_easy_rsa_dir }}/pki/dh.pem"
+    state: link
+
+- name: Build server certificate
+  command: ./easyrsa --batch --days=3650 build-server-full server nopass
+  args:
+    chdir: "{{ openvpn_easy_rsa_dir }}"
+    creates: "{{ openvpn_easy_rsa_dir }}/pki/issued/server.crt"
+  environment:
+    EASYRSA_PKI: "{{ openvpn_easy_rsa_dir }}/pki"
+
+- name: Build first client certificate
+  command: ./easyrsa --batch --days=3650 build-client-full {{ openvpn_client_name }} nopass
+  args:
+    chdir: "{{ openvpn_easy_rsa_dir }}"
+    creates: "{{ openvpn_easy_rsa_dir }}/pki/issued/{{ openvpn_client_name }}.crt"
+  environment:
+    EASYRSA_PKI: "{{ openvpn_easy_rsa_dir }}/pki"
+
+- name: Generate CRL
+  command: ./easyrsa --batch --days=3650 gen-crl
+  args:
+    chdir: "{{ openvpn_easy_rsa_dir }}"
+  environment:
+    EASYRSA_PKI: "{{ openvpn_easy_rsa_dir }}/pki"
+
+# 필요한 파일을 /etc/openvpn/server/ 로 이동(스크립트 동일)
+- name: Copy server materials
+  copy:
+    remote_src: true
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode | default('0600') }}"
+  loop:
+    - { src: "{{ openvpn_easy_rsa_dir }}/pki/ca.crt", dest: "{{ openvpn_pki_dir }}/ca.crt", mode: "0644" }
+    - { src: "{{ openvpn_easy_rsa_dir }}/pki/private/ca.key", dest: "{{ openvpn_pki_dir }}/ca.key" }
+    - { src: "{{ openvpn_easy_rsa_dir }}/pki/issued/server.crt", dest: "{{ openvpn_pki_dir }}/server.crt", mode: "0644" }
+    - { src: "{{ openvpn_easy_rsa_dir }}/pki/private/server.key", dest: "{{ openvpn_pki_dir }}/server.key" }
+    - { src: "{{ openvpn_easy_rsa_dir }}/pki/crl.pem", dest: "{{ openvpn_pki_dir }}/crl.pem", mode: "0644" }
+    - { src: "{{ openvpn_easy_rsa_dir }}/pki/private/easyrsa-tls.key", dest: "{{ openvpn_pki_dir }}/tc.key", mode: "0600" }
+  when: openvpn_use_tls_crypt
+
+- name: Set crl owner to nobody:group (Debian/Ubuntu=nogroup, RHEL/Fedora=nobody)
+  file:
+    path: "{{ openvpn_pki_dir }}/crl.pem"
+    owner: "{{ (ansible_os_family == 'Debian') | ternary('nobody','nobody') }}"
+    group: "{{ (ansible_os_family == 'Debian') | ternary('nogroup','nobody') }}"
+    state: file
+  changed_when: false
+
+- name: Add +x to /etc/openvpn/server/ (stat workaround)
+  file:
+    path: "{{ openvpn_pki_dir }}"
+    mode: '0755'

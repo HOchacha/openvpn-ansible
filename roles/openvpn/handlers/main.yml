@@ -1,0 +1,11 @@
+- name: Restart OpenVPN
+  systemd:
+    name: openvpn-server@server
+    state: restarted
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: true
+
+- name: Reload sysctl
+  command: sysctl --system

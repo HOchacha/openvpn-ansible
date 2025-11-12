@@ -1,0 +1,42 @@
+- name: Issue OpenVPN client profile
+  hosts: openvpn
+  become: true
+  vars:
+    client_name: "{{ client_name | default('testuser') }}"
+  tasks:
+    - name: Generate client key/req
+      ansible.builtin.command: >
+        bash -lc 'cd {{ openvpn_pki_dir }} &&
+                  ./easyrsa --batch gen-req {{ client_name }} nopass'
+      args:
+        creates: "{{ openvpn_pki_dir }}/pki/private/{{ client_name }}.key"
+
+    - name: Sign client cert
+      ansible.builtin.command: >
+        bash -lc 'cd {{ openvpn_pki_dir }} &&
+                  ./easyrsa --batch sign-req client {{ client_name }}'
+      args:
+        creates: "{{ openvpn_pki_dir }}/pki/issued/{{ client_name }}.crt"
+
+    - name: Read client key
+      ansible.builtin.slurp:
+        src: "{{ openvpn_pki_dir }}/pki/private/{{ client_name }}.key"
+      register: s_key
+
+    - name: Read client cert
+      ansible.builtin.slurp:
+        src: "{{ openvpn_pki_dir }}/pki/issued/{{ client_name }}.crt"
+      register: s_crt
+
+    - name: Render client ovpn
+      ansible.builtin.template:
+        src: roles/openvpn/templates/client.ovpn.j2
+        dest: "/home/{{ ansible_user }}/clients/{{ client_name }}.ovpn"
+        mode: '0600'
+      vars:
+        client_key: "{{ s_key['content'] | b64decode }}"
+        client_cert: "{{ s_crt['content'] | b64decode }}"
+
+    - name: Show path
+      ansible.builtin.debug:
+        msg: "Client profile: /home/{{ ansible_user }}/clients/{{ client_name }}.ovpn"
