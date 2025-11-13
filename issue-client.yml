@@ -2,8 +2,11 @@
   hosts: openvpn
   become: true
   vars:
-    client_name: "{{ client_name | default('testuser') }}"
+    client_name: "testuser"
   tasks:
+    # ─────────────────────────────────────────────────────────────
+    # 1. 클라이언트 키/CSR 생성
+    # ─────────────────────────────────────────────────────────────
     - name: Generate client key/req
       ansible.builtin.command: >
         bash -lc 'cd {{ openvpn_pki_dir }} &&
@@ -11,6 +14,9 @@
       args:
         creates: "{{ openvpn_pki_dir }}/pki/private/{{ client_name }}.key"
 
+    # ─────────────────────────────────────────────────────────────
+    # 2. 클라이언트 인증서 서명
+    # ─────────────────────────────────────────────────────────────
     - name: Sign client cert
       ansible.builtin.command: >
         bash -lc 'cd {{ openvpn_pki_dir }} &&
@@ -18,25 +24,69 @@
       args:
         creates: "{{ openvpn_pki_dir }}/pki/issued/{{ client_name }}.crt"
 
+    # ─────────────────────────────────────────────────────────────
+    # 3. 프로파일에 inline으로 넣을 각종 PEM 파일 읽기
+    # ─────────────────────────────────────────────────────────────
+
+    - name: Read client-common.txt from remote
+      ansible.builtin.slurp:
+        src: "{{ openvpn_client_common_path | default('/etc/openvpn/server/client-common.txt') }}"
+      register: s_client_common
+
+    # 3-1) CLIENT KEY
     - name: Read client key
       ansible.builtin.slurp:
         src: "{{ openvpn_pki_dir }}/pki/private/{{ client_name }}.key"
       register: s_key
 
+    # 3-2) CLIENT CERT
     - name: Read client cert
       ansible.builtin.slurp:
         src: "{{ openvpn_pki_dir }}/pki/issued/{{ client_name }}.crt"
       register: s_crt
 
+    # 3-3) CA CERT
+    - name: Read CA cert
+      ansible.builtin.slurp:
+        src: "{{ openvpn_pki_dir }}/pki/ca.crt"
+      register: s_ca
+
+    # 3-4) TLS-CRYPT KEY (ta.key)
+    - name: Read tls-crypt.key
+      ansible.builtin.slurp:
+        src: "{{ openvpn_pki_dir }}/pki/private/easyrsa-tls.key"
+      register: s_tls
+      # 주의: 실제 경로/파일명이 다르면 여기만 맞춰주면 됨
+
+    # ─────────────────────────────────────────────────────────────
+    # 4. .ovpn 템플릿 렌더링
+    # ─────────────────────────────────────────────────────────────
     - name: Render client ovpn
       ansible.builtin.template:
-        src: roles/openvpn/templates/client.ovpn.j2
-        dest: "/home/{{ ansible_user }}/clients/{{ client_name }}.ovpn"
+        src: roles/openvpn/templates/ovpn-profile-template.j2
+        dest: "{{ openvpn_profile_output }}/{{ client_name }}.ovpn"
         mode: '0600'
       vars:
-        client_key: "{{ s_key['content'] | b64decode }}"
-        client_cert: "{{ s_crt['content'] | b64decode }}"
+        client_common: "{{ s_client_common.content | b64decode }}"
 
+        # inline으로 삽입할 PEM 문자열들
+        client_key: "{{ s_key.content | b64decode }}"
+        client_cert: "{{ s_crt.content | b64decode }}"
+        ca_cert: "{{ s_ca.content | b64decode }}"
+        tls_crypt_key: >-
+          {{ s_tls.content
+             | b64decode
+             | regex_replace('(?m)^#.*\n', '') }}
+
+        # 접속 정보/옵션 (group_vars/host_vars에 있으면 그대로 사용)
+        remote_ip: "{{ openvpn_remote_ip | default(ansible_default_ipv4.address) }}"
+        remote_port: "{{ openvpn_port | default(1194) }}"
+        openvpn_proto: "udp"
+        openvpn_auth: "SHA512"
+
+    # ─────────────────────────────────────────────────────────────
+    # 5. 생성된 프로파일 경로 출력
+    # ─────────────────────────────────────────────────────────────
     - name: Show path
       ansible.builtin.debug:
-        msg: "Client profile: /home/{{ ansible_user }}/clients/{{ client_name }}.ovpn"
+        msg: "Client profile: {{ openvpn_profile_output }}/{{ client_name }}.ovpn"

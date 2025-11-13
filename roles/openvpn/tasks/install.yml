@@ -69,3 +69,11 @@
     - name: daemon-reload
       systemd:
         daemon_reload: true
+
+- name: Create OpenVPN profile output dir
+  file:
+    path: "{{ openvpn_profile_output }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'

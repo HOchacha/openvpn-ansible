@@ -11,7 +11,7 @@ openvpn_ipv6_prefix: "fddd:1194:1194:1194::/64"
 openvpn_easy_rsa_version: "3.2.4"
 openvpn_easy_rsa_url: "https://github.com/OpenVPN/easy-rsa/releases/download/v{{ openvpn_easy_rsa_version }}/EasyRSA-{{ openvpn_easy_rsa_version }}.tgz"
 openvpn_easy_rsa_dir: /etc/openvpn/server/easy-rsa
-openvpn_pki_dir: /etc/openvpn/server  # 스크립트와 동일 배치
+openvpn_pki_dir: /etc/openvpn/server/easy-rsa  # 스크립트와 동일 배치
 
 # === 암호 설정 ===
 openvpn_auth: "SHA512"
@@ -20,7 +20,13 @@ openvpn_use_tls_crypt: true
 # === 방화벽/NAT ===
 openvpn_use_firewalld: false      # RHEL/Fedora면 true 권장
 openvpn_nat_subnet_v4: "10.8.0.0/24"
-openvpn_nat_interface_ip: ""      # SNAT --to <이 IP>; 비워두면 서버 primary IPv4 사용
+openvpn_nat_interface_ip: "220.149.241.197"      # SNAT --to <이 IP>; 비워두면 서버 primary IPv4 사용
 
 # === SELinux 포트 라벨링(RHEL/Fedora에서 포트 커스텀 시) ===
 openvpn_manage_selinux_port: true
+
+openvpn_profile_output: "/opt/profiles"
+
+openvpn_use_auth_user_pass: false
+
+openvpn_client_common_path: "/etc/openvpn/server/client-common.txt"

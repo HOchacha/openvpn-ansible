@@ -1,0 +1,16 @@
+{{ client_common | trim }}
+{% if openvpn_use_auth_user_pass %}
+auth-user-pass {{ openvpn_auth_file }}
+{% endif %}
+<ca>
+{{ ca_cert | trim }}
+</ca>
+<cert>
+{{ client_cert | trim }}
+</cert>
+<key>
+{{ client_key | trim }}
+</key>
+<tls-crypt>
+{{ tls_crypt_key | trim }}
+</tls-crypt>
