@@ -18,9 +18,11 @@ openvpn_auth: "SHA512"
 openvpn_use_tls_crypt: true
 
 # === 방화벽/NAT ===
-openvpn_use_firewalld: false      # RHEL/Fedora면 true 권장
+# set to true to use firewalld instead of iptables
+openvpn_use_firewalld: false     
 openvpn_nat_subnet_v4: "10.8.0.0/24"
-openvpn_nat_interface_ip: "220.149.241.197"      # SNAT --to <이 IP>; 비워두면 서버 primary IPv4 사용
+# if openvpn_nat_interface_ip is not defined, the first interface IPv4 address found will be used
+openvpn_nat_interface_ip: "220.149.241.195"      
 
 # === SELinux 포트 라벨링(RHEL/Fedora에서 포트 커스텀 시) ===
 openvpn_manage_selinux_port: true

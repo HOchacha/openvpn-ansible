@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CLOUDSTACK_API="{{ cloudstack_api_url }}"
+
+CREDS_FILE="${1:-}"
+if [[ -z "$CREDS_FILE" || ! -f "$CREDS_FILE" ]]; then
+  logger -t openvpn "auth-check: creds file missing"
+  exit 1
+fi
+
+RAW_USERNAME="$(head -n1 "$CREDS_FILE" | tr -d '\r\n')"
+PASSWORD="$(sed -n '2p' "$CREDS_FILE" | tr -d '\r\n')"
+
+# ===== username 파싱 =====
+# ex) 1234@MS -> USERNAME=1234, DOMAIN=MS
+# ex) 1234@MS, user123@MS, user@MS 모두 처리 가능
+if [[ "$RAW_USERNAME" =~ ^([A-Za-z0-9.]+)@([A-Za-z]+)$ ]]; then
+    USERNAME="${BASH_REMATCH[1]}"
+    DOMAIN="${BASH_REMATCH[2]}"
+    DOMAIN=$(echo "$DOMAIN" | tr '[:lower:]' '[:upper:]')  # 대문자 변환
+else
+    logger -t openvpn "auth-check: invalid username format '$RAW_USERNAME'"
+    exit 1
+fi
+
+logger -t openvpn "auth-check: parsed domain='$DOMAIN' username='$USERNAME'"
+
+# ===== CloudStack login API 호출 =====
+HTTP_CODE=$(curl -sS -o /tmp/cmk_resp.json -w "%{http_code}" \
+  -X POST "$CLOUDSTACK_API" \
+  --data-urlencode "command=login" \
+  --data-urlencode "username=$USERNAME" \
+  --data-urlencode "password=$PASSWORD" \
+  --data-urlencode "domain=$DOMAIN" \
+  --connect-timeout 3 \
+  --max-time 5 \
+  -k)
+
+# ===== 판정 =====
+if [[ "$HTTP_CODE" == "200" ]]; then
+    exit 0
+else
+    logger -t openvpn "auth-check: DENY user=${USERNAME} domain=${DOMAIN} http=${HTTP_CODE}"
+    rm -f /tmp/cmk_resp.json
+    exit 1
+fi

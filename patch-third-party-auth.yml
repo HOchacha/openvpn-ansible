@@ -1,0 +1,5 @@
+- name: Patch-Third Party Authentication for CloudStack
+  hosts: openvpn
+  become: true
+  roles:
+    - auth

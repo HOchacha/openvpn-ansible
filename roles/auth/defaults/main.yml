@@ -1,0 +1,6 @@
+cloudstack_api_url: "https://boan.kloud.zone/client/api"
+openvpn_scripts_dir: "/etc/openvpn/scripts"
+auth_script: "/etc/openvpn/scripts/auth-check.sh"
+auth_on_connect_script: "/etc/openvpn/scripts/on-connect.sh"
+auth_on_disconnect_script: "/etc/openvpn/scripts/on-disconnect.sh"
+openvpn_server_conf: "/etc/openvpn/server/server.conf"

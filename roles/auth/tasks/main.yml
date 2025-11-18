@@ -1,0 +1,50 @@
+# roles/auth/handlers/main.yml
+- name: Ensure scripts dir exists
+  file:
+    path: "{{ openvpn_scripts_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Deploy auth-check.sh
+  template:   # or copy
+    src: auth-check.sh.j2
+    dest: "{{ openvpn_scripts_dir }}/auth-check.sh"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Deploy on-connect.sh
+  copy:
+    src: on-connect.sh
+    dest: "{{ openvpn_scripts_dir }}/on-connect.sh"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Deploy on-disconnect.sh
+  copy:
+    src: on-disconnect.sh
+    dest: "{{ openvpn_scripts_dir }}/on-disconnect.sh"
+    owner: root
+    group: root
+    mode: "0750"
+
+
+- name: Add OpenVPN auth scripts block to server.conf
+  blockinfile:
+    path: "{{ openvpn_server_conf | default('/etc/openvpn/server/server.conf') }}"
+    marker: "# {mark} ANSIBLE OPENVPN AUTH BLOCK"
+    # 원하는 위치가 있으면 예시처럼 사용:
+    # insertafter: '^dev tun'
+    block: |
+      script-security 2
+      auth-user-pass-verify {{ auth_script }} via-file
+      client-connect {{ auth_on_connect_script }}
+      client-disconnect {{ auth_on_disconnect_script }}
+
+- name: Restart OpenVPN
+  service:
+    name: "openvpn-server@server"
+    state: restarted
