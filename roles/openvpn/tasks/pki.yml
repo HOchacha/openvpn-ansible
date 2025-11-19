@@ -1,11 +1,3 @@
-- name: Create PKI dir (server root)
-  file:
-    path: "{{ openvpn_easy_rsa_pki_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-
 # ========== PKI 초기화 & CA/서버/클라 발급 ==========
 - name: Init PKI if not exists
   command: ./easyrsa --batch init-pki
@@ -15,6 +7,18 @@
   environment:
     EASYRSA_PKI: "{{ openvpn_easy_rsa_dir }}/pki"
 
+# ========== PKI 디렉토리 퍼미션 정리 ==========
+- name: Fix owner/group/mode of PKI dir
+  file:
+    path: "{{ openvpn_easy_rsa_dir }}/pki"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+    recurse: yes
+
+
+# ========== CA/서버/클라 발급 ==========
 - name: Build CA nopass
   command: ./easyrsa --batch build-ca nopass
   args:
