@@ -1,6 +1,6 @@
 - name: Create PKI dir (server root)
   file:
-    path: "{{ openvpn_pki_dir }}"
+    path: "{{ openvpn_easy_rsa_pki_dir }}"
     state: directory
     owner: root
     group: root
@@ -49,8 +49,8 @@
 
 - name: Symlink pki/dh.pem -> /etc/openvpn/server/dh.pem (to avoid warning)
   file:
-    src: "{{ openvpn_pki_dir }}/dh.pem"
-    dest: "{{ openvpn_easy_rsa_dir }}/pki/dh.pem"
+    src: "{{ openvpn_server_dir }}/dh.pem"
+    dest: "{{ openvpn_easy_rsa_pki_dir }}/dh.pem"
     state: link
 
 - name: Build server certificate

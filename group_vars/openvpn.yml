@@ -12,7 +12,7 @@ openvpn_server_dir: "/etc/openvpn/server"
 openvpn_easy_rsa_version: "3.2.4"
 openvpn_easy_rsa_url: "https://github.com/OpenVPN/easy-rsa/releases/download/v{{ openvpn_easy_rsa_version }}/EasyRSA-{{ openvpn_easy_rsa_version }}.tgz"
 openvpn_easy_rsa_dir: /etc/openvpn/server/easy-rsa
-openvpn_easy_rsa_pki_dir: /etc/openvpn/server/easy-rsa  # 스크립트와 동일 배치
+openvpn_easy_rsa_pki_dir: /etc/openvpn/server/easy-rsa/pki  # 스크립트와 동일 배치
 
 # === 암호 설정 ===
 openvpn_auth: "SHA512"
