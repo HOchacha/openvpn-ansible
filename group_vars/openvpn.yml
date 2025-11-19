@@ -6,12 +6,13 @@ openvpn_dns_custom: []            # 예: ["1.1.1.1", "9.9.9.9"] (choice=custom�
 openvpn_client_name: "client"     # 최초 생성할 클라이언트 이름
 openvpn_enable_ipv6: false        # 스크립트의 IPv6 자동감지 대신 변수
 openvpn_ipv6_prefix: "fddd:1194:1194:1194::/64"
+openvpn_server_dir: "/etc/openvpn/server"
 
 # === easy-rsa (tarball 설치) ===
 openvpn_easy_rsa_version: "3.2.4"
 openvpn_easy_rsa_url: "https://github.com/OpenVPN/easy-rsa/releases/download/v{{ openvpn_easy_rsa_version }}/EasyRSA-{{ openvpn_easy_rsa_version }}.tgz"
 openvpn_easy_rsa_dir: /etc/openvpn/server/easy-rsa
-openvpn_pki_dir: /etc/openvpn/server/easy-rsa  # 스크립트와 동일 배치
+openvpn_easy_rsa_pki_dir: /etc/openvpn/server/easy-rsa  # 스크립트와 동일 배치
 
 # === 암호 설정 ===
 openvpn_auth: "SHA512"

@@ -35,7 +35,7 @@
 # DH: 스크립트의 ffdhe2048 고정 값 사용
 - name: Write DH params to /etc/openvpn/server/dh.pem
   copy:
-    dest: "{{ openvpn_pki_dir }}/dh.pem"
+    dest: "{{ openvpn_server_dir }}/dh.pem"
     mode: '0644'
     content: |
       -----BEGIN DH PARAMETERS-----
@@ -84,17 +84,17 @@
     dest: "{{ item.dest }}"
     mode: "{{ item.mode | default('0600') }}"
   loop:
-    - { src: "{{ openvpn_easy_rsa_dir }}/pki/ca.crt", dest: "{{ openvpn_pki_dir }}/ca.crt", mode: "0644" }
-    - { src: "{{ openvpn_easy_rsa_dir }}/pki/private/ca.key", dest: "{{ openvpn_pki_dir }}/ca.key" }
-    - { src: "{{ openvpn_easy_rsa_dir }}/pki/issued/server.crt", dest: "{{ openvpn_pki_dir }}/server.crt", mode: "0644" }
-    - { src: "{{ openvpn_easy_rsa_dir }}/pki/private/server.key", dest: "{{ openvpn_pki_dir }}/server.key" }
-    - { src: "{{ openvpn_easy_rsa_dir }}/pki/crl.pem", dest: "{{ openvpn_pki_dir }}/crl.pem", mode: "0644" }
-    - { src: "{{ openvpn_easy_rsa_dir }}/pki/private/easyrsa-tls.key", dest: "{{ openvpn_pki_dir }}/tc.key", mode: "0600" }
+    - { src: "{{ openvpn_easy_rsa_dir }}/pki/ca.crt", dest: "{{ openvpn_server_dir }}/ca.crt", mode: "0644" }
+    - { src: "{{ openvpn_easy_rsa_dir }}/pki/private/ca.key", dest: "{{ openvpn_server_dir }}/ca.key" }
+    - { src: "{{ openvpn_easy_rsa_dir }}/pki/issued/server.crt", dest: "{{ openvpn_server_dir }}/server.crt", mode: "0644" }
+    - { src: "{{ openvpn_easy_rsa_dir }}/pki/private/server.key", dest: "{{ openvpn_server_dir }}/server.key" }
+    - { src: "{{ openvpn_easy_rsa_dir }}/pki/crl.pem", dest: "{{ openvpn_server_dir }}/crl.pem", mode: "0644" }
+    - { src: "{{ openvpn_easy_rsa_dir }}/pki/private/easyrsa-tls.key", dest: "{{ openvpn_server_dir }}/tc.key", mode: "0600" }
   when: openvpn_use_tls_crypt
 
 - name: Set crl owner to nobody:group (Debian/Ubuntu=nogroup, RHEL/Fedora=nobody)
   file:
-    path: "{{ openvpn_pki_dir }}/crl.pem"
+    path: "{{ openvpn_server_dir }}/crl.pem"
     owner: "{{ (ansible_os_family == 'Debian') | ternary('nobody','nobody') }}"
     group: "{{ (ansible_os_family == 'Debian') | ternary('nogroup','nobody') }}"
     state: file
@@ -102,5 +102,5 @@
 
 - name: Add +x to /etc/openvpn/server/ (stat workaround)
   file:
-    path: "{{ openvpn_pki_dir }}"
+    path: "{{ openvpn_server_dir }}"
     mode: '0755'
